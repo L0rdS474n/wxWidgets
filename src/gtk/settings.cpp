@@ -877,6 +877,17 @@ wxFont wxSystemSettingsNative::GetFont( wxSystemFont index )
             {
                 wxNativeFontInfo info;
 #ifdef __WXGTK3__
+                // BambuStudio fork patch: gtk_settings_get_default() returns NULL
+                // when GTK has not yet been initialized (e.g. when application
+                // code calls wxSystemSettings::GetFont() pre-wxEntry). Without
+                // this guard the subsequent g_signal_connect, ContainerWidget()
+                // and wxGtkStyleContext calls hit NULL pointers and abort with
+                // "Can't create a GtkStyleContext without a display connection".
+                // Fall back to wxNORMAL_FONT so callers that probe fonts during
+                // early init do not crash the whole process.
+                if (gtk_settings_get_default() == NULL) {
+                    return *wxNORMAL_FONT;
+                }
                 static bool once;
                 if (!once)
                 {
