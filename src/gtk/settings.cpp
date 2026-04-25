@@ -883,10 +883,18 @@ wxFont wxSystemSettingsNative::GetFont( wxSystemFont index )
                 // this guard the subsequent g_signal_connect, ContainerWidget()
                 // and wxGtkStyleContext calls hit NULL pointers and abort with
                 // "Can't create a GtkStyleContext without a display connection".
-                // Fall back to wxNORMAL_FONT so callers that probe fonts during
-                // early init do not crash the whole process.
+                // Construct a hardcoded fallback wxFont directly. Returning
+                // *wxNORMAL_FONT instead would recurse back into this function
+                // via wxStockGDI::GetFont(FONT_NORMAL) -> wxSystemSettings::
+                // GetFont(wxSYS_DEFAULT_GUI_FONT), eventually overflowing the
+                // stack. Storing the fallback in gs_fontSystem makes IsOk()
+                // true for subsequent (recursive) calls and breaks the cycle.
                 if (gtk_settings_get_default() == NULL) {
-                    return *wxNORMAL_FONT;
+                    gs_fontSystem = wxFont(10, wxFONTFAMILY_SWISS,
+                                           wxFONTSTYLE_NORMAL,
+                                           wxFONTWEIGHT_NORMAL);
+                    font = gs_fontSystem;
+                    break;
                 }
                 static bool once;
                 if (!once)
